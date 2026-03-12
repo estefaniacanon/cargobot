@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Tráfico</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0b0f1a; --surface:#111827; --surface2:#1a2235; --border:#1f2d45;
+  --accent:#3b82f6; --green:#22c55e; --yellow:#f59e0b; --red:#ef4444;
+  --muted:#4b5563; --text:#e2e8f0; --text2:#94a3b8;
+  --mono:'DM Mono',monospace; --sans:'DM Sans',sans-serif; --display:'Syne',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:13px}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{font-family:var(--display);font-size:18px;font-weight:800;letter-spacing:-0.5px}
+.logo span{color:var(--accent)}
+#clock{font-family:var(--mono);font-size:20px;color:var(--accent);letter-spacing:2px}
+.jornada-badge{font-size:11px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);padding:4px 10px;border-radius:20px}
+main{padding:20px 24px;max-width:1440px;margin:0 auto}
+.kpi-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center}
+.kpi-value{font-family:var(--display);font-size:28px;font-weight:800;line-height:1}
+.kpi-label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+.kpi.total .kpi-value{color:var(--accent)}.kpi.ckgreen .kpi-value{color:var(--green)}
+.kpi.ckyellow .kpi-value{color:var(--yellow)}.kpi.ckred .kpi-value{color:var(--red)}
+.kpi.ckgray .kpi-value{color:var(--text2)}
+.upload-zone{border:2px dashed var(--border);border-radius:12px;padding:22px;text-align:center;margin-bottom:18px;cursor:pointer;transition:border-color .2s,background .2s}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(59,130,246,.05)}
+.upload-zone input{display:none}
+.upload-zone p{color:var(--text2);font-size:12px;margin-top:5px}
+.upload-zone strong{color:var(--text);font-family:var(--display);font-size:14px}
+.tabs{display:flex;gap:4px;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;width:fit-content}
+.tab{padding:7px 18px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:500;color:var(--text2);transition:all .15s;border:none;background:none;font-family:var(--sans)}
+.tab.active{background:var(--accent);color:#fff}
+.filters{display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
+.filter-btn{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;cursor:pointer;transition:all .15s;font-family:var(--sans)}
+.filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.filter-btn.f-green.active{background:var(--green);border-color:var(--green)}
+.filter-btn.f-yellow.active{background:var(--yellow);border-color:var(--yellow);color:#111}
+.filter-btn.f-red.active{background:var(--red);border-color:var(--red)}
+input[type=search]{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;font-family:var(--sans);outline:none;width:200px}
+input[type=search]:focus{border-color:var(--accent)}
+.table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--surface2);border-bottom:1px solid var(--border)}
+th{padding:10px 12px;text-align:left;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{color:var(--text)}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:rgba(59,130,246,.04)}
+td{padding:9px 12px;vertical-align:middle}
+.sem{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;white-space:nowrap;font-weight:500}
+.sem-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sem.green{background:rgba(34,197,94,.12);color:var(--green)}.sem.green .sem-dot{background:var(--green);box-shadow:0 0 6px var(--green)}
+.sem.yellow{background:rgba(245,158,11,.12);color:var(--yellow)}.sem.yellow .sem-dot{background:var(--yellow);box-shadow:0 0 6px var(--yellow);animation:py 1s infinite}
+.sem.red{background:rgba(239,68,68,.12);color:var(--red)}.sem.red .sem-dot{background:var(--red);box-shadow:0 0 6px var(--red);animation:pr .6s infinite}
+.sem.gray{background:rgba(148,163,184,.1);color:var(--muted)}.sem.gray .sem-dot{background:var(--muted)}
+@keyframes py{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes pr{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+.badge{font-size:10px;padding:3px 8px;border-radius:4px;font-weight:500;white-space:nowrap;font-family:var(--mono)}
+.badge.planned{background:rgba(59,130,246,.15);color:#60a5fa}
+.badge.transit{background:rgba(251,191,36,.15);color:#fbbf24}
+.badge.arrived{background:rgba(34,197,94,.15);color:#4ade80}
+.call-time{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text)}
+.call-time.past{color:var(--red)}.call-time.soon{color:var(--yellow)}
+.conductor{font-size:12px;color:var(--text);max-width:180px}
+.conductor small{display:block;color:var(--text2);font-size:10px;margin-top:1px}
+.stop{font-family:var(--mono);font-size:11px;color:var(--text2)}
+.stop strong{color:var(--text);font-size:12px}
+
+/* ── GESTIÓN BUTTONS — definitive ── */
+.gest-wrap{display:flex;flex-direction:column;gap:3px;min-width:155px}
+.gb{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 9px;border-radius:6px;
+  border:1px solid var(--border);background:var(--surface2);
+  color:var(--text2);font-size:10px;font-family:var(--sans);
+  cursor:pointer;text-align:left;width:100%;line-height:1.3;
+  transition:background .12s,border-color .12s,color .12s;
+}
+.gb:hover{border-color:var(--accent);color:var(--text);background:rgba(59,130,246,.08)}
+.gb.sel-ok      {border-color:var(--green);  color:var(--green);  background:rgba(34,197,94,.14); font-weight:600}
+.gb.sel-delay   {border-color:var(--red);    color:var(--red);    background:rgba(239,68,68,.14); font-weight:600}
+.gb.sel-noans   {border-color:var(--yellow); color:var(--yellow); background:rgba(245,158,11,.14);font-weight:600}
+.gb.sel-incident{border-color:#a855f7;       color:#a855f7;       background:rgba(168,85,247,.14);font-weight:600}
+.gb-clear{font-size:9px;color:var(--text2);background:none;border:none;cursor:pointer;padding:1px 4px;font-family:var(--sans);align-self:flex-end;transition:color .12s}
+.gb-clear:hover{color:var(--accent)}
+
+.note-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:11px;padding:4px 8px;border-radius:6px;font-family:var(--sans);width:140px;outline:none}
+.note-input:focus{border-color:var(--accent)}
+
+/* agenda */
+.agenda{display:none}.agenda.visible{display:block}
+.agenda-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;display:grid;grid-template-columns:90px 1fr 170px 160px 160px;gap:16px;align-items:center;transition:border-color .2s}
+.agenda-item:hover{border-color:var(--accent)}
+.agenda-item.red-alert{border-left:3px solid var(--red)}
+.agenda-item.yellow-alert{border-left:3px solid var(--yellow)}
+.agenda-item.green-alert{border-left:3px solid var(--green)}
+.call-block{text-align:center}
+.call-block .lbl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text2)}
+.call-block .ct{font-family:var(--mono);font-size:18px;font-weight:500}
+.ct.red{color:var(--red)}.ct.yellow{color:var(--yellow)}.ct.green{color:var(--green)}
+.trip-id{font-family:var(--mono);font-size:11px;color:var(--text2)}
+.trip-cond{font-size:13px;font-weight:500;color:var(--text)}
+.route-block{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px}
+.route-arrow{color:var(--muted)}
+.route-from,.route-to{color:var(--text);font-weight:500}
+.route-time{color:var(--text2);font-size:10px}
+.empty{text-align:center;padding:60px 20px;color:var(--text2)}
+.empty .icon{font-size:40px;margin-bottom:12px}
+
+  /* ── CONFIRMED ROW (faded) ── */
+  tbody tr.row-confirmed { opacity: 0.45; }
+  tbody tr.row-confirmed:hover { opacity: 0.75; }
+  /* ── PENDING (past due, not confirmed) — red pulsing left border ── */
+  tbody tr.row-pending { border-left: 3px solid var(--red); }
+  .sem.red.pending-pulse .sem-dot { animation: pr .6s infinite; }
+
+  /* ── EMPRESA BADGE ── */
+  .emp-acelc{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(14,165,233,.15);color:#0EA5E9;font-family:var(--mono)}
+  .emp-avnhe{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(139,92,246,.15);color:#8B5CF6;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">TRÁFICO<span>.</span>CONTROL</div>
+  <div id="clock">--:--:--</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span id="savedBadge" style="font-size:10px;color:var(--green);display:none">✓ guardado</span>
+    <button id="resetBtn" style="font-size:11px;padding:5px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;font-family:var(--sans)">🗑 Nueva jornada</button>
+    <div class="jornada-badge">Jornada 06:00–15:00 | 12/03/2026</div>
+  </div>
+</header>
+<main>
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="csvInput" accept=".csv" multiple>
+    <strong>📂 Cargar CSV de Amazon Relay</strong>
+    <p>Arrastra los ficheros o haz clic para seleccionar (acepta múltiples CSVs)</p>
+  </div>
+  <div class="kpi-strip">
+    <div class="kpi total"><div class="kpi-value" id="kTotal">0</div><div class="kpi-label">Total Viajes</div></div>
+    <div class="kpi ckred"><div class="kpi-value" id="kRed">0</div><div class="kpi-label">🔴 Llamar Ahora</div></div>
+    <div class="kpi ckyellow"><div class="kpi-value" id="kYellow">0</div><div class="kpi-label">🟡 Llamar Pronto</div></div>
+    <div class="kpi ckgreen"><div class="kpi-value" id="kGreen">0</div><div class="kpi-label">🟢 En Tiempo</div></div>
+    <div class="kpi ckgray"><div class="kpi-value" id="kPending" style="color:#f97316">0</div><div class="kpi-label">⏳ Sin Confirmar</div></div>
+    <div class="kpi ckgray"><div class="kpi-value" id="kDone" style="color:#22c55e">0</div><div class="kpi-label">✓ Confirmados</div></div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="tabla">📋 Tabla de Seguimiento</button>
+    <button class="tab" data-tab="agenda">📞 Agenda de Llamadas</button>
+  </div>
+  <div class="filters">
+    <button class="filter-btn f-red"    data-filter="red">🔴 Llamar Ahora</button>
+    <button class="filter-btn f-yellow" data-filter="yellow">🟡 Llamar Pronto</button>
+    <button class="filter-btn f-green"  data-filter="green">🟢 En Tiempo</button>
+    <button class="filter-btn" data-filter="transit">🔄 En Tránsito</button>
+    <button class="filter-btn" data-filter="planned">📅 Planificados</button>
+    <button class="filter-btn" data-filter="vuelo">✈️ En Vuelo</button>
+    <input type="search" id="searchBox" placeholder="Buscar ID, conductor, parada…">
+  </div>
+  <div id="tablaView">
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th data-sort="semaforo">ALERTA ↕</th>
+          <th data-sort="llamar">LLAMAR ANTES DE ↕</th>
+          <th data-sort="id_viaje">ID VIAJE ↕</th>
+          <th>ESTADO</th>
+          <th>CONDUCTOR</th>
+          <th data-sort="hora_carga">CARGA ↕</th>
+          <th data-sort="hora_descarga">DESCARGA ↕</th>
+          <th>GESTIÓN</th>
+          <th>NOTAS</th>
+          <th>EMP.</th>
+        </tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="agendaView" class="agenda">
+    <div id="agendaBody"></div>
+  </div>
+</main>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const DEMO_DATA = [{"id_vr": "1164Q3JMH", "id_viaje": "1164Q3JMH", "id_bloque": "", "es_tour": false, "tipo": "EN_VUELO", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "Guilherme Da silva", "cuenta": "ATSWarehouseTransfersIntermodal", "parada1": "RLBO", "hora_carga": "03/10/2026 18:00", "parada2": "BCN4", "hora_descarga": "03/10/2026 19:30"}, {"id_vr": "113CH97XN", "id_viaje": "113CH97XN", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "ABDESSAMAD EL WAKRI,Grigore Bodescu", "cuenta": "ATSOutbound", "parada1": "BER8", "hora_carga": "03/10/2026 20:00", "parada2": "BCN8", "hora_descarga": "03/12/2026 14:30"}, {"id_vr": "114WMWRL6", "id_viaje": "114WMWRL6", "id_bloque": "", "es_tour": false, "tipo": "EN_VUELO", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "Mirabela Deaconu,abdellatif asdir Gannou", "cuenta": "ATSOutbound", "parada1": "BER8", "hora_carga": "03/10/2026 21:15", "parada2": "BCN8", "hora_descarga": "03/12/2026 15:45"}, {"id_vr": "112WXCZCV", "id_viaje": "112WXCZCV", "id_bloque": "", "es_tour": false, "tipo": "EN_VUELO", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "Manuel Guillermo Ochoa Silvera,abdelhak zahri ait sarg", "cuenta": "ATSOutbound", "parada1": "BER8", "hora_carga": "03/10/2026 22:30", "parada2": "BCN8", "hora_descarga": "03/12/2026 17:00"}, {"id_vr": "114XM6LG6", "id_viaje": "114XM6LG6", "id_bloque": "", "es_tour": false, "tipo": "EN_VUELO", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "ABDELGHANI DAHMANI DAHMANI,geisenhainer olaf", "cuenta": "ATSOutbound", "parada1": "BER8", "hora_carga": "03/11/2026 00:30", "parada2": "BCN8", "hora_descarga": "03/12/2026 19:00"}, {"id_vr": "113KX46QR", "id_viaje": "113KX46QR", "id_bloque": "", "es_tour": false, "tipo": "EN_VUELO", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "Nicolae Ghiorlan,Borislav Valentinov Shkodrov", "cuenta": "ATSOutbound", "parada1": "BER8", "hora_carga": "03/11/2026 17:30", "parada2": "BCN8", "hora_descarga": "03/13/2026 12:00"}, {"id_vr": "111CFPT8X", "id_viaje": "111CFPT8X", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "petre nicolae petre,abdellatif El yazizi zidane", "cuenta": "ATSOutbound", "parada1": "BCN1", "hora_carga": "03/11/2026 20:15", "parada2": "LPCJ-LP-CADAUJAC-FR", "hora_descarga": "03/12/2026 08:00"}, {"id_vr": "111FQ2NS5", "id_viaje": "111FQ2NS5", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "LUCIAN VASILE BETIU,abderrazak lahlou", "cuenta": "ATSOutbound", "parada1": "BCN1", "hora_carga": "03/11/2026 21:00", "parada2": "DWP1", "hora_descarga": "03/12/2026 06:15"}, {"id_vr": "114HNR6ZC", "id_viaje": "T-114ZW7GJ1", "id_bloque": "B-5ZLHVDKXT", "es_tour": true, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "AVNHE", "conductor": "Tudor Dan Salagean,vasile salagean", "cuenta": "ATSOutbound", "parada1": "MAD8", "hora_carga": "03/11/2026 21:25", "parada2": "BCN8", "hora_descarga": "03/12/2026 07:35"}, {"id_vr": "115LKTP68", "id_viaje": "115LKTP68", "id_bloque": "", "es_tour": false, "tipo": "EN_VUELO", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "Rumen Nikolov Borisov,AGBOMZE EGHOMWANRE EDOSA", "cuenta": "ATSOutbound", "parada1": "BER8", "hora_carga": "03/11/2026 23:30", "parada2": "BCN8", "hora_descarga": "03/13/2026 18:00"}, {"id_vr": "1142J78T8", "id_viaje": "1142J78T8", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "abdelatif domouness chaiboub,Nicolae Romeo Petre", "cuenta": "ATSOutbound", "parada1": "BCN1", "hora_carga": "03/12/2026 00:30", "parada2": "LPCJ-LP-CADAUJAC-FR", "hora_descarga": "03/12/2026 10:21"}, {"id_vr": "1116JY72P", "id_viaje": "1116JY72P", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "Carlos Gomez Casado,Alexandru Bogdan Marian", "cuenta": "ATSOutbound", "parada1": "BCN4", "hora_carga": "03/12/2026 01:30", "parada2": "MNS1-CP-MIONS-FR", "hora_descarga": "03/12/2026 10:38"}, {"id_vr": "1156FLQSG", "id_viaje": "1156FLQSG", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "Igor Doros", "cuenta": "ATSOutbound", "parada1": "BCN4", "hora_carga": "03/12/2026 01:30", "parada2": "DLP2", "hora_descarga": "03/12/2026 06:23"}, {"id_vr": "113JS6LNJ", "id_viaje": "113JS6LNJ", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "abderrahim bouchlif,Robert Florentin Toboiu", "cuenta": "ATSOutbound", "parada1": "MAD7", "hora_carga": "03/12/2026 01:30", "parada2": "DZG2", "hora_descarga": "03/12/2026 08:00"}, {"id_vr": "1113WVK8C", "id_viaje": "1113WVK8C", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "adrian mance", "cuenta": "ATSOutbound", "parada1": "BCN4", "hora_carga": "03/12/2026 01:45", "parada2": "DLP5", "hora_descarga": "03/12/2026 06:54"}, {"id_vr": "1161VY9GP", "id_viaje": "1161VY9GP", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "el hossain touguani el bahy,Marin balasan", "cuenta": "ATSOutbound", "parada1": "BCN1", "hora_carga": "03/12/2026 02:00", "parada2": "LPCJ-LP-CADAUJAC-FR", "hora_descarga": "03/12/2026 11:51"}, {"id_vr": "1124K37DW", "id_viaje": "1124K37DW", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "Julio andre Borges pereira de carvalho", "cuenta": "ATSSeaWarehouseTransfersGround", "parada1": "ZAZ1", "hora_carga": "03/12/2026 04:30", "parada2": "SBCN", "hora_descarga": "03/12/2026 10:46"}, {"id_vr": "114KQNHHK", "id_viaje": "114KQNHHK", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "Ana Maria Mititelu,Andrei Nicolae Mititelu", "cuenta": "ATSOutbound", "parada1": "BCN4", "hora_carga": "03/12/2026 05:00", "parada2": "MNS1-CP-MIONS-FR", "hora_descarga": "03/12/2026 14:08"}, {"id_vr": "113FLRFKM", "id_viaje": "113FLRFKM", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Marian Nicusor Rusu", "cuenta": "RailTrailerPoolAdjustment", "parada1": "RMU1", "hora_carga": "03/12/2026 06:00", "parada2": "RLBO", "hora_descarga": "03/12/2026 20:30"}, {"id_vr": "11159QDWX", "id_viaje": "11159QDWX", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "florentin raducan", "cuenta": "ATSOutbound", "parada1": "DQL2", "hora_carga": "03/12/2026 06:45", "parada2": "OCL5", "hora_descarga": "03/12/2026 10:30"}, {"id_vr": "116VBFR58", "id_viaje": "116VBFR58", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "Leopoldo sebastian barrera", "cuenta": "RailTrailerPoolAdjustment", "parada1": "RMU1", "hora_carga": "03/12/2026 07:00", "parada2": "RLBO", "hora_descarga": "03/12/2026 21:30"}, {"id_vr": "111FKHHFJ", "id_viaje": "111FKHHFJ", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "Nicusor Chirita Munteanu", "cuenta": "ATSOutbound", "parada1": "DCT7", "hora_carga": "03/12/2026 07:00", "parada2": "OCN2", "hora_descarga": "03/12/2026 10:00"}, {"id_vr": "114VLMYHT", "id_viaje": "114VLMYHT", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Rosen Milchov Raykov", "cuenta": "ATSOutbound", "parada1": "DCT7", "hora_carga": "03/12/2026 07:30", "parada2": "OCN2", "hora_descarga": "03/12/2026 10:30"}, {"id_vr": "114YJ77MF", "id_viaje": "114YJ77MF", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Veaceslav Snopciuc", "cuenta": "ATSOutbound", "parada1": "DCT7", "hora_carga": "03/12/2026 07:45", "parada2": "OCN2", "hora_descarga": "03/12/2026 10:45"}, {"id_vr": "112Y2569B", "id_viaje": "112Y2569B", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "AVRKD", "conductor": "Laurentiu Gabriel Dogarel", "cuenta": "TrailerPoolAdjustment", "parada1": "VLC1", "hora_carga": "03/12/2026 09:00", "parada2": "RMU1", "hora_descarga": "03/12/2026 13:15"}, {"id_vr": "114F17QRS", "id_viaje": "114F17QRS", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "PERSA AGUSTIN VASILE", "cuenta": "ATSWarehouseTransfers", "parada1": "BCN1", "hora_carga": "03/12/2026 09:00", "parada2": "BCN4", "hora_descarga": "03/12/2026 13:00"}, {"id_vr": "116SD9QYQ", "id_viaje": "116SD9QYQ", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "alian Alfonso sosa,alian Alfonso sosa", "cuenta": "RailTrailerPoolAdjustment", "parada1": "VLC1", "hora_carga": "03/12/2026 09:07", "parada2": "RLBO", "hora_descarga": "03/12/2026 17:30"}, {"id_vr": "1121RXTPQ", "id_viaje": "T-114887X8G", "id_bloque": "B-7K9HW0KN4", "es_tour": true, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "AVNHE", "conductor": "IOAN RODILÁ,Carlos Gomez Casado", "cuenta": "ATSOutbound", "parada1": "XESF", "hora_carga": "03/12/2026 09:15", "parada2": "BCN8", "hora_descarga": "03/12/2026 21:02"}, {"id_vr": "116VSMTTV", "id_viaje": "116VSMTTV", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Mohamed talha,abderrahim bouchlif", "cuenta": "ATSOutbound", "parada1": "BER8", "hora_carga": "03/12/2026 09:15", "parada2": "BCN8", "hora_descarga": "03/14/2026 06:45"}, {"id_vr": "112ZQ7TZR", "id_viaje": "T-115B7YBHS", "id_bloque": "B-S0QZT86NW", "es_tour": true, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "José Cazorla urrutia,francisco José Ponce Rodríguez", "cuenta": "ATSWarehouseTransfers", "parada1": "SVQ1", "hora_carga": "03/12/2026 09:50", "parada2": "MAD7", "hora_descarga": "03/12/2026 18:42"}, {"id_vr": "1166RGCDC", "id_viaje": "T-114GDQHJC", "id_bloque": "B-FX6V92KKL", "es_tour": true, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "AVNHE", "conductor": "Adrian Nicolae Ivan,Dumitru Scurtu", "cuenta": "ATSOutbound", "parada1": "VEPX", "hora_carga": "03/12/2026 11:15", "parada2": "MAD8", "hora_descarga": "03/12/2026 16:21"}, {"id_vr": "1135H51R5", "id_viaje": "1135H51R5", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "abdellatif El yazizi zidane", "cuenta": "ATSReturns", "parada1": "OCL3", "hora_carga": "03/12/2026 12:00", "parada2": "DMA6", "hora_descarga": "03/12/2026 17:00"}, {"id_vr": "115FYL4P7", "id_viaje": "115FYL4P7", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Nicolae Catalin Croitoru", "cuenta": "ATSSeaWarehouseTransfersGround", "parada1": "ZAZ1", "hora_carga": "03/12/2026 12:00", "parada2": "SBCN", "hora_descarga": "03/12/2026 18:16"}, {"id_vr": "112P1KSBK", "id_viaje": "112P1KSBK", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Rory Schavemaker", "cuenta": "ATSSeaWarehouseTransfersGround", "parada1": "ZAZ1", "hora_carga": "03/12/2026 12:15", "parada2": "SBCN", "hora_descarga": "03/12/2026 18:31"}, {"id_vr": "112HBMT54", "id_viaje": "112HBMT54", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Nicusor Chirita Munteanu", "cuenta": "ATSReturns", "parada1": "OCN2", "hora_carga": "03/12/2026 12:30", "parada2": "DCT7", "hora_descarga": "03/12/2026 15:30"}, {"id_vr": "111H5BZT5", "id_viaje": "111H5BZT5", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "modou wade,Mouad El kihal khailou", "cuenta": "ATSOutbound", "parada1": "BCN4", "hora_carga": "03/12/2026 12:30", "parada2": "LPAL-LP-ALPES-FR", "hora_descarga": "03/12/2026 22:38"}, {"id_vr": "114FYQ9R7", "id_viaje": "114FYQ9R7", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "robert nicusur pascu", "cuenta": "ATSSeaWarehouseTransfersGround", "parada1": "ZAZ1", "hora_carga": "03/12/2026 12:30", "parada2": "SBCN", "hora_descarga": "03/12/2026 18:46"}, {"id_vr": "111FJJX18", "id_viaje": "111FJJX18", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Florin Țurcanu", "cuenta": "TransfersCarts", "parada1": "DCZ3", "hora_carga": "03/12/2026 13:00", "parada2": "VLC1", "hora_descarga": "03/12/2026 17:30"}, {"id_vr": "1154DY9R6", "id_viaje": "1154DY9R6", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "florentin raducan", "cuenta": "ATSReturns", "parada1": "OCL5", "hora_carga": "03/12/2026 13:00", "parada2": "DQL2", "hora_descarga": "03/12/2026 16:45"}, {"id_vr": "1122LNHDK", "id_viaje": "1122LNHDK", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "IN_TRANSIT", "transportista": "ACELC", "conductor": "abderrazak lahlou,Ionel Stefu", "cuenta": "ATSOutbound", "parada1": "BER8", "hora_carga": "03/12/2026 13:30", "parada2": "BCN8", "hora_descarga": "03/14/2026 10:00"}, {"id_vr": "114PL2W4V", "id_viaje": "114PL2W4V", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Ioan Brinzeiu", "cuenta": "ATSSeaWarehouseTransfersGround", "parada1": "ZAZ1", "hora_carga": "03/12/2026 13:45", "parada2": "SBCN", "hora_descarga": "03/12/2026 20:01"}, {"id_vr": "111H4T3T4", "id_viaje": "111H4T3T4", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Emanuel Hedea", "cuenta": "ATSWarehouseTransfersIntermodal", "parada1": "ZAZ1", "hora_carga": "03/12/2026 13:45", "parada2": "RLBO", "hora_descarga": "03/12/2026 22:13"}, {"id_vr": "113YDPLSJ", "id_viaje": "113YDPLSJ", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Mihai Marutoiu", "cuenta": "ATSSeaWarehouseTransfersGround", "parada1": "ZAZ1", "hora_carga": "03/12/2026 13:45", "parada2": "SBCN", "hora_descarga": "03/12/2026 20:01"}, {"id_vr": "111VJL994", "id_viaje": "111VJL994", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Ion Tatu", "cuenta": "ATSWarehouseTransfersIntermodal", "parada1": "RLBO", "hora_carga": "03/12/2026 14:00", "parada2": "ZAZ1", "hora_descarga": "03/12/2026 21:25"}, {"id_vr": "114WCVWT6", "id_viaje": "114WCVWT6", "id_bloque": "", "es_tour": false, "tipo": "NORMAL", "estado": "PLANNED", "transportista": "ACELC", "conductor": "Carlos Gomez Casado,Marius Ratiu", "cuenta": "ATSOutbound", "parada1": "MAD6", "hora_carga": "03/12/2026 14:45", "parada2": "LIN8", "hora_descarga": "03/14/2026 12:15"}];
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let trips = DEMO_DATA.slice();
+const STORE_KEY = 'trafico_12032026';
+const _saved    = (() => { try { return JSON.parse(localStorage.getItem(STORE_KEY)||'{}'); } catch(e){ return {}; } })();
+const gestiones = _saved.gestiones || {};
+const notas     = _saved.notas     || {};
+const activeFilters = new Set();
+let currentSort = { key: 'semaforo', dir: 1 };
+let currentTab  = 'tabla';
+
+// ── PERSIST ───────────────────────────────────────────────────────────────────
+function persist() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({ gestiones, notas }));
+    const badge = document.getElementById('savedBadge');
+    if (badge) { badge.style.display='inline'; clearTimeout(badge._t); badge._t=setTimeout(()=>badge.style.display='none',2000); }
+  } catch(e){}
+}
+
+const OPTS = [
+  { key:'cargado',   icon:'🟩', label:'Cargado ✓',           cls:'sel-ok'       },
+  { key:'descargado',icon:'🟦', label:'Descargado ✓',         cls:'sel-ok'       },
+  { key:'ok',        icon:'✅', label:'Contactado — OK',      cls:'sel-ok'       },
+  { key:'delay',     icon:'⚠️', label:'Retraso confirmado',   cls:'sel-delay'    },
+  { key:'noans',     icon:'📵', label:'Sin respuesta',        cls:'sel-noans'    },
+  { key:'incident',  icon:'🚨', label:'Incidencia',           cls:'sel-incident' },
+];
+
+// Gestiones que se consideran "confirmadas" — el viaje puede salir de pantalla
+const CONFIRMED = new Set(['cargado','descargado']);
+
+// ── CLOCK ─────────────────────────────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  updateKPIs(getVisible());
+}, 1000);
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function parseDate(s) {
+  if (!s) return null;
+  const [dp,tp] = s.split(' ');
+  const [m,d,y] = dp.split('/');
+  return new Date(`${y}-${m}-${d}T${tp}:00`);
+}
+function fmtTime(dt) { return dt ? dt.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}) : '—'; }
+function fmtDate(dt) {
+  if (!dt) return '—';
+  return dt.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'}) + ' ' +
+         dt.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ── SEMAPHORE ─────────────────────────────────────────────────────────────────
+function getSemaphore(t) {
+  const now   = new Date();
+  const today = now.toDateString();
+  const c = parseDate(t.hora_carga);
+  const d = parseDate(t.hora_descarga);
+  const gest = gestiones[t.id_vr||t.id_viaje] || '';
+
+  // Determinar qué acciones están confirmadas individualmente
+  // 'cargado'    → carga confirmada, pero descarga sigue pendiente si cae en jornada
+  // 'descargado' → todo confirmado, viaje cerrado
+  const cargaConfirmada    = (gest === 'cargado' || gest === 'descargado');
+  const descargaConfirmada = (gest === 'descargado');
+  const totalConfirmado    = descargaConfirmada;
+
+  // Jornada 06:00–15:00
+  const jStart = new Date(now); jStart.setHours(6,0,0,0);
+  const jEnd   = new Date(now); jEnd.setHours(15,0,0,0);
+  const descargaEnJornada = d && d.toDateString()===today && d>=jStart && d<=jEnd;
+
+  // Próxima acción futura no confirmada
+  let next = null, lbl = '';
+  if (c && c.toDateString()===today && c>now && !cargaConfirmada) { next=c; lbl='CARGA'; }
+  if (d && d.toDateString()===today && d>now && !descargaConfirmada) {
+    if (!next || d < next) { next=d; lbl='DESCARGA'; }
+  }
+
+  // Si la carga ya está confirmada pero la descarga cae en jornada y no está confirmada
+  // → tratar descarga como siguiente acción activa aunque la carga ya pasó
+  if (!next && cargaConfirmada && !descargaConfirmada && descargaEnJornada) {
+    if (d > now) {
+      next = d; lbl = 'DESCARGA';
+    } else {
+      // Descarga ya pasó sin confirmar → pendiente
+      const minsAgo = Math.round((now-d)/60000);
+      const agoStr = minsAgo>=60 ? `${Math.floor(minsAgo/60)}h${minsAgo%60}m` : `${minsAgo}m`;
+      return { level:'red', label:`⏳ DESCARGA hace ${agoStr}`, mins:-minsAgo, pending:true };
+    }
+  }
+
+  // Acción PASADA sin confirmar → pendiente rojo
+  if (!next && !totalConfirmado) {
+    let past = null, pastLbl = '';
+    if (c && c.toDateString()===today && c<=now && !cargaConfirmada) { past=c; pastLbl='CARGA'; }
+    if (d && d.toDateString()===today && d<=now && !descargaConfirmada) {
+      if (!past || d > past) { past=d; pastLbl='DESCARGA'; }
+    }
+    if (!past && t.estado==='IN_TRANSIT' && d && d<=now && !descargaConfirmada) {
+      past=d; pastLbl='DESCARGA';
+    }
+    if (past) {
+      const minsAgo = Math.round((now-past)/60000);
+      const agoStr = minsAgo>=60 ? `${Math.floor(minsAgo/60)}h${minsAgo%60}m` : `${minsAgo}m`;
+      return { level:'red', label:`⏳ ${pastLbl} hace ${agoStr}`, mins:-minsAgo, pending:true };
+    }
+  }
+
+  // Gestión activa no confirmada sin acción futura → sin confirmar
+  if (!next) {
+    if (!totalConfirmado && gest) {
+      return { level:'red', label:`⚠️ Sin confirmar`, mins:null, pending:true };
+    }
+    return { level:'gray', label: totalConfirmado ? '✓ Confirmado' : 'Sin acción hoy', mins:null };
+  }
+
+  const mins = Math.round((next-now)/60000);
+  if (mins<=5)   return { level:'red',    label:`¡${mins}m — ${lbl}!`, mins };
+  if (mins<=120) return { level:'yellow', label:`${mins}m — ${lbl}`,  mins };
+  return               { level:'green',  label:`${mins}m — ${lbl}`,  mins };
+}
+function getCallTime(t) {
+  const now=new Date(), today=now.toDateString();
+  const c=parseDate(t.hora_carga), d=parseDate(t.hora_descarga);
+  let next=null;
+  if (c && c.toDateString()===today && c>now) next=c;
+  if (d && d.toDateString()===today && d>now && (!next||d<next)) next=d;
+  return next ? new Date(next.getTime()-120*60000) : null;
+}
+
+// ── FILTER / SORT ─────────────────────────────────────────────────────────────
+function getVisible() {
+  const q = document.getElementById('searchBox').value.toLowerCase();
+  return trips.filter(t => {
+    const s = getSemaphore(t);
+    if (activeFilters.has('red')     && s.level!=='red')    return false;
+    if (activeFilters.has('yellow')  && s.level!=='yellow') return false;
+    if (activeFilters.has('green')   && s.level!=='green')  return false;
+    if (activeFilters.has('transit') && t.estado!=='IN_TRANSIT') return false;
+    if (activeFilters.has('planned') && t.estado!=='PLANNED')    return false;
+    if (activeFilters.has('vuelo')   && t.estado!=='ARRIVED_AT_FINAL_DESTINATION') return false;
+    if (q && !((t.id_vr||'')+t.id_viaje+t.conductor+t.parada1+t.parada2+(t.transportista||'')).toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b) => {
+    const sa=getSemaphore(a), sb=getSemaphore(b);
+    const ga=gestiones[a.id_vr||a.id_viaje]||'', gb=gestiones[b.id_vr||b.id_viaje]||'';
+    // Urgencia: 0=pendiente+incidencia/retraso/sinresp, 1=pendiente, 2=rojo, 3=amarillo, 4=verde, 5=gris
+    const URGENT_GEST = new Set(['incident','delay','noans']);
+    function urgency(s, gest) {
+      if (s.pending && URGENT_GEST.has(gest)) return 0;
+      if (s.pending)                           return 1;
+      if (s.level==='red')                     return 2;
+      if (s.level==='yellow')                  return 3;
+      if (s.level==='green')                   return 4;
+      return 5;
+    }
+    if (currentSort.key==='semaforo') {
+      const diff = urgency(sa,ga) - urgency(sb,gb);
+      if (diff !== 0) return diff * currentSort.dir;
+      const ma = sa.mins ?? 9999, mb = sb.mins ?? 9999;
+      return (ma - mb) * currentSort.dir;
+    }
+    if (currentSort.key==='llamar') {
+      const ca=getCallTime(a),cb=getCallTime(b);
+      return ((ca?ca.getTime():9e15)-(cb?cb.getTime():9e15))*currentSort.dir;
+    }
+    const ka=parseDate(a[currentSort.key==='hora_carga'?'hora_carga':'hora_descarga']);
+    const kb=parseDate(b[currentSort.key==='hora_carga'?'hora_carga':'hora_descarga']);
+    if (currentSort.key==='hora_carga'||currentSort.key==='hora_descarga')
+      return ((ka?ka.getTime():9e15)-(kb?kb.getTime():9e15))*currentSort.dir;
+    if (currentSort.key==='id_viaje') return a.id_viaje.localeCompare(b.id_viaje)*currentSort.dir;
+    return 0;
+  });
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderAll() {
+  const vis = getVisible();
+  updateKPIs(vis);
+  currentTab==='tabla' ? renderTable(vis) : renderAgenda(vis);
+}
+function updateKPIs(vis) {
+  let r=0,y=0,g=0,pending=0,done=0;
+  trips.forEach(t=>{
+    const l=getSemaphore(t).level;
+    const gest = gestiones[t.id_vr||t.id_viaje]||'';
+    if (gest === 'descargado') done++;
+    else if (getSemaphore(t).pending) pending++;
+    else if (l==='red') r++;
+    else if (l==='yellow') y++;
+    else if (l==='green') g++;
+  });
+  document.getElementById('kTotal').textContent   = trips.length;
+  document.getElementById('kRed').textContent     = r;
+  document.getElementById('kYellow').textContent  = y;
+  document.getElementById('kGreen').textContent   = g;
+  document.getElementById('kPending').textContent = pending;
+  document.getElementById('kDone').textContent    = done;
+}
+
+// ── BUILD GESTIÓN (pure DOM, no innerHTML) ───────────────────────────────────
+function buildGestWrap(id) {
+  const wrap = document.createElement('div');
+  wrap.className = 'gest-wrap';
+  wrap.dataset.id = id;
+  const cur = gestiones[id] || '';
+
+  OPTS.forEach(o => {
+    const btn = document.createElement('button');
+    btn.className = 'gb' + (cur===o.key ? ' '+o.cls : '');
+    btn.dataset.action = 'gest';
+    btn.dataset.id     = id;
+    btn.dataset.key    = o.key;
+    btn.dataset.cls    = o.cls;
+    btn.textContent    = o.icon + ' ' + o.label;
+    wrap.appendChild(btn);
+  });
+
+  if (cur) {
+    const clr = document.createElement('button');
+    clr.className      = 'gb-clear';
+    clr.dataset.action = 'clear';
+    clr.dataset.id     = id;
+    clr.textContent    = '✕ cambiar';
+    wrap.appendChild(clr);
+    // Hide non-selected buttons
+    wrap.querySelectorAll('.gb').forEach(b => {
+      if (b.dataset.key !== cur) b.style.display = 'none';
+    });
+  }
+  return wrap;
+}
+
+function applyGest(id, key, cls) {
+  gestiones[id] = key;
+  persist();
+  // Update ALL gest-wrap elements for this id (tabla + agenda may both be rendered)
+  document.querySelectorAll(`.gest-wrap[data-id="${id}"]`).forEach(wrap => {
+    // Reset all buttons
+    wrap.querySelectorAll('.gb').forEach(b => {
+      b.className = 'gb' + (b.dataset.key===key ? ' '+cls : '');
+      b.style.display = b.dataset.key===key ? '' : 'none';
+    });
+    // Remove old clear btn if exists
+    wrap.querySelectorAll('.gb-clear').forEach(b=>b.remove());
+    // Add clear btn
+    const clr = document.createElement('button');
+    clr.className      = 'gb-clear';
+    clr.dataset.action = 'clear';
+    clr.dataset.id     = id;
+    clr.textContent    = '✕ cambiar';
+    wrap.appendChild(clr);
+  });
+}
+
+function clearGest(id) {
+  gestiones[id] = '';
+  persist();
+  document.querySelectorAll(`.gest-wrap[data-id="${id}"]`).forEach(wrap => {
+    wrap.querySelectorAll('.gb').forEach(b => {
+      b.className = 'gb';
+      b.style.display = '';
+    });
+    wrap.querySelectorAll('.gb-clear').forEach(b=>b.remove());
+  });
+}
+
+// ── EVENT DELEGATION (single listener for all clicks) ────────────────────────
+document.addEventListener('click', e => {
+  // Gestión button
+  const gb = e.target.closest('[data-action="gest"]');
+  if (gb) { applyGest(gb.dataset.id, gb.dataset.key, gb.dataset.cls); return; }
+  // Clear button
+  const cl = e.target.closest('[data-action="clear"]');
+  if (cl) { clearGest(cl.dataset.id); return; }
+  // Tab
+  const tab = e.target.closest('[data-tab]');
+  if (tab) { switchTab(tab.dataset.tab); return; }
+  // Filter
+  const fb = e.target.closest('[data-filter]');
+  if (fb) { toggleFilter(fb.dataset.filter, fb); return; }
+  // Sort
+  const th = e.target.closest('th[data-sort]');
+  if (th) { sortBy(th.dataset.sort); return; }
+  // Upload zone
+  if (e.target.closest('#uploadZone')) document.getElementById('csvInput').click();
+});
+
+document.getElementById('searchBox').addEventListener('input', renderAll);
+
+// ── RENDER TABLE ──────────────────────────────────────────────────────────────
+function semEl(sem) {
+  const s = document.createElement('span');
+  s.className = 'sem ' + sem.level;
+  const dot = document.createElement('span');
+  dot.className = 'sem-dot';
+  s.appendChild(dot);
+  s.appendChild(document.createTextNode(sem.label));
+  return s;
+}
+function badgeEl(estado) {
+  const b = document.createElement('span');
+  b.className = 'badge' + (estado==='PLANNED'?' planned':estado==='IN_TRANSIT'?' transit':estado==='ARRIVED_AT_FINAL_DESTINATION'?' arrived':'');
+  b.textContent = estado==='PLANNED'?'PLAN.':estado==='IN_TRANSIT'?'TRÁNSITO':estado==='ARRIVED_AT_FINAL_DESTINATION'?'EN VUELO':estado;
+  return b;
+}
+
+function renderTable(vis) {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  if (!vis.length) {
+    const tr = tbody.insertRow();
+    const td = tr.insertCell();
+    td.colSpan = 9;
+    td.innerHTML = '<div class="empty"><div class="icon">🔍</div><p>No hay viajes con los filtros actuales</p></div>';
+    return;
+  }
+  vis.forEach(t => {
+    const sem  = getSemaphore(t);
+    const callDt = getCallTime(t);
+    const now  = new Date();
+    const conductors = t.conductor.split(',');
+    const gest = gestiones[t.id_vr||t.id_viaje] || '';
+    const tr   = tbody.insertRow();
+
+    // Row visual state
+    // Solo atenuar fila cuando descargado (viaje cerrado). Cargado sigue activo.
+    if (gest === 'descargado') tr.classList.add('row-confirmed');
+    else if (sem.pending)      tr.classList.add('row-pending');
+
+    // 1 semáforo
+    tr.insertCell().appendChild(semEl(sem));
+    // 2 llamar
+    const ctd = tr.insertCell();
+    const ct = document.createElement('span');
+    ct.className = 'call-time' + (callDt ? (callDt<now?' past':callDt-now<120*60000?' soon':'') : '');
+    ct.textContent = callDt ? fmtTime(callDt) : '—';
+    ctd.appendChild(ct);
+    // 3 id viaje — muestra etapa + tour si aplica
+    const itd = tr.insertCell();
+    if (t.id_bloque) {
+      // Es un tour: mostrar ID etapa arriba, ID tour abajo
+      itd.innerHTML = `
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text)">${t.id_vr}</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:1px">T: ${t.id_viaje}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--accent);margin-top:2px">🔗 ${t.id_bloque}</div>`;
+    } else {
+      itd.innerHTML = `<span style="font-family:var(--mono);font-size:11px;color:var(--text2)">${t.id_vr||t.id_viaje}</span>`;
+    }
+    // 4 estado
+    tr.insertCell().appendChild(badgeEl(t.estado));
+    // 5 conductor
+    const condTd = tr.insertCell();
+    const condDiv = document.createElement('div');
+    condDiv.className = 'conductor';
+    condDiv.textContent = conductors[0];
+    if (conductors[1]) { const sm=document.createElement('small'); sm.textContent='+ '+conductors[1].trim(); condDiv.appendChild(sm); }
+    condTd.appendChild(condDiv);
+    // 6 carga
+    const c1 = tr.insertCell();
+    c1.innerHTML = `<div class="stop"><strong>${t.parada1}</strong><br>${fmtDate(parseDate(t.hora_carga))}</div>`;
+    // 7 descarga
+    const c2 = tr.insertCell();
+    c2.innerHTML = `<div class="stop"><strong>${t.parada2}</strong><br>${fmtDate(parseDate(t.hora_descarga))}</div>`;
+    // 8 gestión — pure DOM
+    tr.insertCell().appendChild(buildGestWrap(t.id_vr||t.id_viaje));
+    // 9 notas
+    const ntd = tr.insertCell();
+    const ni = document.createElement('input');
+    ni.type = 'text'; ni.className = 'note-input'; ni.placeholder = 'Añadir nota…';
+    ni.value = notas[t.id_vr||t.id_viaje] || '';
+    ni.addEventListener('change', () => { notas[t.id_vr||t.id_viaje] = ni.value; persist(); });
+    ntd.appendChild(ni);
+    // Empresa col
+    const etd = tr.insertCell();
+    const emp = t.transportista || '';
+    etd.innerHTML = emp ? `<span class="emp-${emp.toLowerCase()}">${emp}</span>` : '';
+  });
+}
+
+// ── RENDER AGENDA ─────────────────────────────────────────────────────────────
+function renderAgenda(vis) {
+  const body = document.getElementById('agendaBody');
+  body.innerHTML = '';
+  const actionable = vis.filter(t => getSemaphore(t).level !== 'gray')
+    .sort((a,b) => { const ca=getCallTime(a),cb=getCallTime(b); return (ca?ca.getTime():9e15)-(cb?cb.getTime():9e15); });
+  if (!actionable.length) {
+    body.innerHTML = '<div class="empty"><div class="icon">📞</div><p>No hay llamadas pendientes</p></div>';
+    return;
+  }
+  actionable.forEach(t => {
+    const sem = getSemaphore(t);
+    const callDt = getCallTime(t);
+    const conductors = t.conductor.split(',');
+    const item = document.createElement('div');
+    item.className = `agenda-item ${sem.level}-alert`;
+
+    // Call block
+    const cb = document.createElement('div');
+    cb.className = 'call-block';
+    cb.innerHTML = `<div class="lbl">Llamar a las</div><div class="ct ${sem.level}">${callDt?fmtTime(callDt):'—'}</div>`;
+    cb.appendChild(semEl(sem));
+    item.appendChild(cb);
+
+    // Conductor
+    const cd = document.createElement('div');
+    const tourLine = t.id_bloque
+      ? `<div style="font-family:var(--mono);font-size:9px;color:var(--accent);margin-top:1px">🔗 ${t.id_bloque}</div>`
+      : '';
+    cd.innerHTML = `<div class="trip-id">${t.id_vr||t.id_viaje}</div>${tourLine}<div class="trip-cond">${conductors[0]}</div>${conductors[1]?`<div style="font-size:11px;color:var(--text2)">${conductors[1].trim()}</div>`:''}`;
+    item.appendChild(cd);
+
+    // Route
+    const rd = document.createElement('div');
+    rd.className = 'route-block';
+    rd.innerHTML = `<div><div class="route-from">${t.parada1}</div><div class="route-time">${fmtDate(parseDate(t.hora_carga))}</div></div><div class="route-arrow">→</div><div><div class="route-to">${t.parada2}</div><div class="route-time">${fmtDate(parseDate(t.hora_descarga))}</div></div>`;
+    item.appendChild(rd);
+
+    // Gestión
+    const gd = document.createElement('div');
+    gd.appendChild(buildGestWrap(t.id_vr||t.id_viaje));
+    item.appendChild(gd);
+
+    // Nota
+    const nd = document.createElement('div');
+    const ni = document.createElement('input');
+    ni.type='text'; ni.className='note-input'; ni.placeholder='Nota…'; ni.style.width='100%';
+    ni.value = notas[t.id_vr||t.id_viaje]||'';
+    ni.addEventListener('change', ()=>{ notas[t.id_vr||t.id_viaje]=ni.value; persist(); });
+    nd.appendChild(ni);
+    item.appendChild(nd);
+
+    body.appendChild(item);
+  });
+}
+
+// ── INTERACTIONS ──────────────────────────────────────────────────────────────
+function toggleFilter(key, btn) {
+  activeFilters.has(key) ? (activeFilters.delete(key), btn.classList.remove('active')) : (activeFilters.add(key), btn.classList.add('active'));
+  renderAll();
+}
+function sortBy(key) {
+  currentSort.key===key ? currentSort.dir*=-1 : (currentSort.key=key, currentSort.dir=1);
+  renderAll();
+}
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+  document.getElementById('tablaView').style.display  = tab==='tabla'  ? 'block' : 'none';
+  document.getElementById('agendaView').className = 'agenda' + (tab==='agenda'?' visible':'');
+  renderAll();
+}
+
+// ── CSV ───────────────────────────────────────────────────────────────────────
+function handleFiles(files) {
+  if (!files.length) return;
+  const all=[]; let pending=files.length;
+  Array.from(files).forEach(f => {
+    const r=new FileReader();
+    r.onload=e=>{ all.push(...parseCSV(e.target.result)); if(!--pending){trips=processTrips(all);renderAll();} };
+    r.readAsText(f,'utf-8');
+  });
+}
+function parseCSV(text) {
+  const lines=text.replace(/^\uFEFF/,'').split('\n').filter(l=>l.trim());
+  const hdrs=parseLine(lines[0]);
+  return lines.slice(1).map(l=>{ const v=parseLine(l),o={}; hdrs.forEach((h,i)=>o[h]=(v[i]||'').trim()); return o; }).filter(r=>r['ID de viaje']);
+}
+function parseLine(line) {
+  const res=[]; let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    if(line[i]==='"')inQ=!inQ;
+    else if(line[i]===','&&!inQ){res.push(cur);cur='';}
+    else cur+=line[i];
+  }
+  res.push(cur); return res;
+}
+function processTrips(rows) {
+  const rep=new Date('2026-03-11');
+  const filtered=rows.filter(r=>{
+    const e=r['Estado']; if(e==='COMPLETED')return false;
+    const a1=parseDate(r['Llegada al patio 1 de parada']),a2=parseDate(r['Llegada al patio 2 de parada']);
+    if(e==='IN_TRANSIT'||e==='ARRIVED_AT_FINAL_DESTINATION') return a1&&a1<=rep;
+    if(e==='PLANNED'){
+      if(a1&&a1.toDateString()===rep.toDateString()&&a1.getHours()<15)return true;
+      if(a2&&a2.toDateString()===rep.toDateString()&&a2.getHours()<15&&(!a1||a1.toDateString()!==rep.toDateString()))return true;
+    }
+    return false;
+  });
+  const map={},ord={'IN_TRANSIT':0,'ARRIVED_AT_FINAL_DESTINATION':1,'PLANNED':2};
+  filtered.forEach(r=>{const id=r['ID de viaje'];if(!map[id]||(ord[r['Estado']]<ord[map[id]['Estado']]))map[id]=r;});
+  return Object.values(map).map(r=>({
+    id_vr:r['ID de VR']||r['ID de viaje']||'',id_bloque:r['ID del bloque']||'',id_viaje:r['ID de viaje']||'',estado:r['Estado']||'',
+    conductor:r['Conductor']||'',parada1:r['1 de parada']||'',hora_carga:r['Llegada al patio 1 de parada']||'',
+    parada2:r['2 de parada']||'',hora_descarga:r['Llegada al patio 2 de parada']||'',
+    cancelacion:r['Fecha y hora de cancelaci\u00f3n de VR (UTC)']||'',
+  })).sort((a,b)=>{ const da=parseDate(a.hora_carga),db=parseDate(b.hora_carga); return(da?da.getTime():9e15)-(db?db.getTime():9e15); });
+}
+
+document.getElementById('csvInput').addEventListener('change', e=>handleFiles(e.target.files));
+const zone=document.getElementById('uploadZone');
+zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag');});
+zone.addEventListener('dragleave',()=>zone.classList.remove('drag'));
+zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag');handleFiles(e.dataTransfer.files);});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('¿Borrar todas las gestiones y notas de la jornada actual?')) return;
+  Object.keys(gestiones).forEach(k => delete gestiones[k]);
+  Object.keys(notas).forEach(k => delete notas[k]);
+  try { localStorage.removeItem(STORE_KEY); } catch(e){}
+  renderAll();
+});
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+renderAll();
+</script>
+</body>
+</html>
