@@ -5,12 +5,12 @@ Lee archivos CSV de una carpeta y genera un JSON normalizado.
 import os
 import csv
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 DATA_DIR = BASE_DIR / "data"
-OUTPUT_DIR = BASE_DIR / "output"
+OUTPUT_DIR = BASE_DIR / "src" / "output"
 OUTPUT_FILE = OUTPUT_DIR / "data.json"
 
 
@@ -186,7 +186,7 @@ def process_csv_files():
         processed_files.append(csv_file.name)
     
     output_data = {
-        "fecha_procesamiento": datetime.utcnow().isoformat() + "Z",
+        "fecha_procesamiento": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "archivos_procesados": processed_files,
         "total_secciones": len(all_sections),
         "secciones": all_sections
