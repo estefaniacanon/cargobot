@@ -136,9 +136,9 @@ td{padding:9px 12px;vertical-align:middle}
 </header>
 <main>
   <div class="upload-zone" id="uploadZone">
-    <input type="file" id="csvInput" accept=".csv" multiple>
-    <strong>📂 Cargar CSV de Amazon Relay</strong>
-    <p>Arrastra los ficheros o haz clic para seleccionar (acepta múltiples CSVs)</p>
+    <input type="file" id="csvInput" accept=".json">
+    <strong>📂 Cargar JSON de datos</strong>
+    <p>Arrastra el archivo JSON o haz clic para seleccionar</p>
   </div>
   <div class="kpi-strip">
     <div class="kpi total"><div class="kpi-value" id="kTotal">0</div><div class="kpi-label">Total Viajes</div></div>
@@ -643,50 +643,62 @@ function switchTab(tab) {
   renderAll();
 }
 
-// ── CSV ───────────────────────────────────────────────────────────────────────
+// ── JSON ───────────────────────────────────────────────────────────────────────
 function handleFiles(files) {
   if (!files.length) return;
-  const all=[]; let pending=files.length;
-  Array.from(files).forEach(f => {
-    const r=new FileReader();
-    r.onload=e=>{ all.push(...parseCSV(e.target.result)); if(!--pending){trips=processTrips(all);renderAll();} };
-    r.readAsText(f,'utf-8');
-  });
+  const f = files[0];
+  const r = new FileReader();
+  r.onload = e => {
+    trips = parseJSON(e.target.result);
+    renderAll();
+  };
+  r.readAsText(f, 'utf-8');
 }
-function parseCSV(text) {
-  const lines=text.replace(/^\uFEFF/,'').split('\n').filter(l=>l.trim());
-  const hdrs=parseLine(lines[0]);
-  return lines.slice(1).map(l=>{ const v=parseLine(l),o={}; hdrs.forEach((h,i)=>o[h]=(v[i]||'').trim()); return o; }).filter(r=>r['ID de viaje']);
-}
-function parseLine(line) {
-  const res=[]; let cur='',inQ=false;
-  for(let i=0;i<line.length;i++){
-    if(line[i]==='"')inQ=!inQ;
-    else if(line[i]===','&&!inQ){res.push(cur);cur='';}
-    else cur+=line[i];
+function parseJSON(text) {
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${mm}/${dd}/${yy} ${hh}:${min}`;
   }
-  res.push(cur); return res;
-}
-function processTrips(rows) {
-  const rep=new Date('2026-03-11');
-  const filtered=rows.filter(r=>{
-    const e=r['Estado']; if(e==='COMPLETED')return false;
-    const a1=parseDate(r['Llegada al patio 1 de parada']),a2=parseDate(r['Llegada al patio 2 de parada']);
-    if(e==='IN_TRANSIT'||e==='ARRIVED_AT_FINAL_DESTINATION') return a1&&a1<=rep;
-    if(e==='PLANNED'){
-      if(a1&&a1.toDateString()===rep.toDateString()&&a1.getHours()<15)return true;
-      if(a2&&a2.toDateString()===rep.toDateString()&&a2.getHours()<15&&(!a1||a1.toDateString()!==rep.toDateString()))return true;
-    }
-    return false;
-  });
-  const map={},ord={'IN_TRANSIT':0,'ARRIVED_AT_FINAL_DESTINATION':1,'PLANNED':2};
-  filtered.forEach(r=>{const id=r['ID de viaje'];if(!map[id]||(ord[r['Estado']]<ord[map[id]['Estado']]))map[id]=r;});
-  return Object.values(map).map(r=>({
-    id_vr:r['ID de VR']||r['ID de viaje']||'',id_bloque:r['ID del bloque']||'',id_viaje:r['ID de viaje']||'',estado:r['Estado']||'',
-    conductor:r['Conductor']||'',parada1:r['1 de parada']||'',hora_carga:r['Llegada al patio 1 de parada']||'',
-    parada2:r['2 de parada']||'',hora_descarga:r['Llegada al patio 2 de parada']||'',
-    cancelacion:r['Fecha y hora de cancelaci\u00f3n de VR (UTC)']||'',
-  })).sort((a,b)=>{ const da=parseDate(a.hora_carga),db=parseDate(b.hora_carga); return(da?da.getTime():9e15)-(db?db.getTime():9e15); });
+  function getParada(paradas, tipo) {
+    const p = paradas?.find(p => p.tipo === tipo);
+    return p ? p.llegada : '';
+  }
+  try {
+    const data = JSON.parse(text);
+    const secciones = data.secciones || (Array.isArray(data) ? data : []);
+    return secciones.filter(r => r.id_viaje || r.id_vr).map(r => ({
+      id_vr: r.id_vr || r.id_viaje || '',
+      id_viaje: r.id_viaje || '',
+      id_bloque: r.id_bloque || '',
+      es_tour: r.es_tour || false,
+      tipo: r.es_tour ? 'TOUR' : 'NORMAL',
+      estado: r.estado || 'PLANNED',
+      transportista: r.cuenta || '',
+      conductor: r.conductor || '',
+      cuenta: r.cuenta || '',
+      parada1: r.paradas?.[0]?.ubicacion || '',
+      hora_carga: getParada(r.paradas, 'carga'),
+      parada2: r.paradas?.[1]?.ubicacion || '',
+      hora_descarga: getParada(r.paradas, 'descarga'),
+    })).map(r => ({
+      ...r,
+      hora_carga: fmtDate(r.hora_carga),
+      hora_descarga: fmtDate(r.hora_descarga),
+    })).sort((a, b) => {
+      const da = parseDate(a.hora_carga), db = parseDate(b.hora_carga);
+      return (da ? da.getTime() : 9e15) - (db ? db.getTime() : 9e15);
+    });
+  } catch (e) {
+    console.error('Invalid JSON:', e);
+    alert('Error: El archivo JSON no es válido');
+    return [];
+  }
 }
 
 document.getElementById('csvInput').addEventListener('change', e=>handleFiles(e.target.files));

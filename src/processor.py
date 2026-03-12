@@ -16,10 +16,10 @@ OUTPUT_FILE = OUTPUT_DIR / "data.json"
 
 def parse_date(date_str):
     """
-    Convierte fecha de formato DD/MM/YYYY HH:mm a ISO 8601.
+    Convierte fecha de formato MM/DD/YYYY HH:mm a ISO 8601.
     
     Args:
-        date_str: Cadena con formato DD/MM/YYYY HH:mm
+        date_str: Cadena con formato MM/DD/YYYY HH:mm
         
     Returns:
         Cadena en formato ISO 8601 o None si es inválida
@@ -28,7 +28,7 @@ def parse_date(date_str):
         return None
     
     try:
-        dt = datetime.strptime(date_str.strip(), "%d/%m/%Y %H:%M")
+        dt = datetime.strptime(date_str.strip(), "%m/%d/%Y %H:%M")
         return dt.isoformat()
     except ValueError:
         return None
@@ -77,7 +77,7 @@ def parse_row(row, headers):
     
     paradas = []
     
-    p1 = get_val("1 Parada")
+    p1 = get_val("1 de parada")
     l1 = get_val("Llegada al patio 1 de parada")
     if p1 and p1.lower() != "nan":
         paradas.append({
@@ -86,7 +86,7 @@ def parse_row(row, headers):
             "llegada": parse_date(l1)
         })
     
-    p2 = get_val("2 Parada")
+    p2 = get_val("2 de parada")
     l2 = get_val("Llegada al patio 2 de parada")
     if p2 and p2.lower() != "nan":
         paradas.append({
@@ -95,7 +95,7 @@ def parse_row(row, headers):
             "llegada": parse_date(l2)
         })
     
-    p3 = get_val("3 Parada")
+    p3 = get_val("3 de parada")
     l3 = get_val("Llegada al patio 3 de parada")
     if p3 and p3.lower() != "nan":
         paradas.append({
@@ -109,7 +109,7 @@ def parse_row(row, headers):
         "id_vr": get_val("ID de VR"),
         "estado": get_val("Estado"),
         "conductor": get_val("Conductor"),
-        "cuenta": get_val("Cuenta del remitente"),
+        "cuenta": get_val("Cuenta del remitente") or get_val("Transportista"),
         "id_bloque": id_bloque if es_tour else None,
         "es_tour": es_tour,
         "cancelado": cancelado,
@@ -135,7 +135,14 @@ def read_csv_file(filepath):
         headers = [h.strip().replace('"', '') for h in headers]
         
         for row in reader:
-            if not row or not row[0].strip():
+            if not row:
+                continue
+            
+            # Buscar ID de VR para validar fila
+            id_vr_idx = headers.index("ID de VR") if "ID de VR" in headers else -1
+            id_vr = row[id_vr_idx].strip() if id_vr_idx >= 0 and id_vr_idx < len(row) else ""
+            
+            if not id_vr or id_vr.lower() == "nan":
                 continue
             
             seccion = parse_row(row, headers)
