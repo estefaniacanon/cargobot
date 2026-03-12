@@ -77,39 +77,24 @@ def parse_row(row, headers):
     
     paradas = []
     
-    p1 = get_val("1 de parada")
-    l1 = get_val("Llegada al patio 1 de parada")
-    if p1 and p1.lower() != "nan":
-        paradas.append({
-            "tipo": "carga",
-            "ubicacion": p1,
-            "llegada": parse_date(l1)
-        })
-    
-    p2 = get_val("2 de parada")
-    l2 = get_val("Llegada al patio 2 de parada")
-    if p2 and p2.lower() != "nan":
-        paradas.append({
-            "tipo": "descarga",
-            "ubicacion": p2,
-            "llegada": parse_date(l2)
-        })
-    
-    p3 = get_val("3 de parada")
-    l3 = get_val("Llegada al patio 3 de parada")
-    if p3 and p3.lower() != "nan":
-        paradas.append({
-            "tipo": "descarga",
-            "ubicacion": p3,
-            "llegada": parse_date(l3)
-        })
+    for i in range(1, 6):  # Soporte hasta 5 paradas
+        p = get_val(f"{i} de parada")
+        l = get_val(f"Llegada al patio {i} de parada")
+        if p and p.lower() != "nan":
+            tipo = "carga" if i == 1 else "descarga"
+            paradas.append({
+                "tipo": tipo,
+                "ubicacion": p,
+                "llegada": parse_date(l)
+            })
     
     return {
         "id_viaje": id_viaje,
         "id_vr": get_val("ID de VR"),
         "estado": get_val("Estado"),
         "conductor": get_val("Conductor"),
-        "cuenta": get_val("Cuenta del remitente") or get_val("Transportista"),
+        "transportista": get_val("Transportista"),
+        "cuenta": get_val("Cuenta del remitente"),
         "id_bloque": id_bloque if es_tour else None,
         "es_tour": es_tour,
         "cancelado": cancelado,

@@ -196,7 +196,7 @@ const _saved    = (() => { try { return JSON.parse(localStorage.getItem(STORE_KE
 const gestiones = _saved.gestiones || {};
 const notas     = _saved.notas     || {};
 const activeFilters = new Set();
-let currentSort = { key: 'semaforo', dir: 1 };
+let currentSort = { key: 'llamar', dir: 1 };
 let currentTab  = 'tabla';
 
 // ── PERSIST ───────────────────────────────────────────────────────────────────
@@ -263,8 +263,15 @@ function getSemaphore(t) {
 
   // Próxima acción futura no confirmada
   let next = null, lbl = '';
+  
+  // Si carga futura y no confirmada
   if (c && c.toDateString()===today && c>now && !cargaConfirmada) { next=c; lbl='CARGA'; }
-  if (d && d.toDateString()===today && d>now && !descargaConfirmada) {
+  // Si carga pasada pero no confirmada → mostrar descarga como siguiente acción
+  if (c && c.toDateString()===today && c<=now && !cargaConfirmada && !descargaConfirmada) {
+    if (d && d.toDateString()===today && d>now) { next=d; lbl='DESCARGA'; }
+  }
+  // Si carga confirmada o no hay carga pendiente → considerar descarga
+  if ((cargaConfirmada || (c && c.toDateString()!==today)) && d && d.toDateString()===today && d>now && !descargaConfirmada) {
     if (!next || d < next) { next=d; lbl='DESCARGA'; }
   }
 
@@ -314,10 +321,19 @@ function getSemaphore(t) {
 function getCallTime(t) {
   const now=new Date(), today=now.toDateString();
   const c=parseDate(t.hora_carga), d=parseDate(t.hora_descarga);
-  let next=null;
-  if (c && c.toDateString()===today && c>now) next=c;
-  if (d && d.toDateString()===today && d>now && (!next||d<next)) next=d;
-  return next ? new Date(next.getTime()-120*60000) : null;
+  const gest = gestiones[t.id_vr||t.id_viaje] || '';
+  const cargaConfirmada = (gest === 'cargado' || gest === 'descargado');
+  const descargaConfirmada = (gest === 'descargado');
+  
+  // Si carga no confirmada y está en jornada hoy
+  if (c && c.toDateString()===today && !cargaConfirmada) {
+    return new Date(c.getTime()-120*60000);
+  }
+  // Si carga confirmada pero descarga no confirmada y está en jornada hoy
+  if (d && d.toDateString()===today && !descargaConfirmada) {
+    return new Date(d.getTime()-120*60000);
+  }
+  return null;
 }
 
 // ── FILTER / SORT ─────────────────────────────────────────────────────────────
@@ -679,7 +695,7 @@ function parseJSON(text) {
       es_tour: r.es_tour || false,
       tipo: r.es_tour ? 'TOUR' : 'NORMAL',
       estado: r.estado || 'PLANNED',
-      transportista: r.cuenta || '',
+      transportista: r.transportista || '',
       conductor: r.conductor || '',
       cuenta: r.cuenta || '',
       parada1: r.paradas?.[0]?.ubicacion || '',
