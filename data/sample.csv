@@ -1,0 +1,7 @@
+ID de viaje,ID de VR,Estado,Conductor,1 Parada,Llegada al patio 1 de parada,2 Parada,Llegada al patio 2 de parada,3 Parada,Llegada al patio 3 de parada,Cuenta del remitente,ID del bloque,Fecha y hora de cancelacion
+T-114ZW7GJ1,113GBQJCY,IN_TRANSIT,Juan Garcia,DQL2,12/03/2026 05:30,MAD9,12/03/2026 09:48,,,ATSOutbound,B-5ZLHVDKXT,nan
+T-114ZW7GJ1,11669X3RX,PLANNED,Jane Smith,MAD9,12/03/2026 09:49,MAD8,12/03/2026 11:26,,,ATSOutbound,B-5ZLHVDKXT,nan
+T-115N7MX2Q,115N7MX2Q,IN_TRANSIT,Mike Johnson,BCN4,12/03/2026 07:00,BER8,12/03/2026 14:30,,,ATSOutbound,,nan
+116VX58SX,116VX58SX,PLANNED,Luis Garcia,VLC1,12/03/2026 09:07,RLBO,12/03/2026 17:30,,,RailTrailerPoolAdjustment,,nan
+B-S0QZT86NW,1151WDMX7,IN_TRANSIT,Carlos Ponce,SVQ1,12/03/2026 13:01,MAD7,12/03/2026 16:45,,,FleetManagementEquipmentRepositioning,B-S0QZT86NW,nan
+T-113M8ZMWM,T-113M8ZMWM,PLANNED,Ana Lopez,CORR-VALLADOL-ES,12/03/2026 03:21,XESF,12/03/2026 08:00,,,ATSOutbound,B-T391NR4TH,nan

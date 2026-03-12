@@ -4,6 +4,12 @@
 
 Leer archivos CSV de Amazon Relay desde una carpeta, procesarlos y generar un archivo JSON estandarizado con todos los registros, sin aplicar filtros de jornada.
 
+## Tecnología
+
+- **Lenguaje**: Python 3
+- **Convenciones**: PEP 8
+- **Estructura**: Funciones, sin clases
+
 ---
 
 ## 1. Estructura de Carpetas
@@ -13,10 +19,31 @@ cargobot/
 ├── data/                    # Archivos CSV de entrada
 │   ├── 10032026_ACELC.csv
 │   └── 10032026_AVNHE.csv
-├── src/                     # Código fuente
+├── src/                     # Código fuente Python
+│   └── processor.py
 ├── output/                  # JSON generado
 │   └── data.json
-└── docs/                    # Documentación
+├── docs/                    # Documentación
+└── requirements.txt         # Dependencias
+```
+
+---
+
+## 2. Requisitos Técnicos
+
+### Dependencias
+- Python 3.8+
+- No requiere librerías externas (usa `csv` y `json` de stdlib)
+
+### Instalación de Python
+1. Descargar desde https://www.python.org/downloads/
+2. Durante instalación, marcar **"Add Python to PATH"**
+3. Verificar con: `python --version`
+
+### Ejecución
+```bash
+cd cargobot
+python src/processor.py
 ```
 
 ---
